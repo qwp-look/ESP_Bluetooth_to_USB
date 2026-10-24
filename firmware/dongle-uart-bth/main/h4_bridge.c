@@ -223,12 +223,18 @@ static void pump_task(void *arg)
         acl_slot_t *a = &s_acl_q.slot[s_acl_q.head];
         portEXIT_CRITICAL(&s_tx_lock);
 
-        /* 按端点最大包长分片发送：DWC2 驱动对中断端点的多包链式传输
-         * 不可靠（第二次多包传输永远不完成），自己切片逐片确认。 */
+        /* 事件必须作为"单次 USB 传输"整包交付：Windows 的蓝牙栈不做
+         * 跨传输重组（真实 dongle 的大事件=单传输多包），分片会被静默丢弃
+         * ——只有 Linux 能容忍分片。DWC2 唯一的坑是传输长度恰为端点包长
+         * 整倍数时不完成，规避：整倍数长度拆 1 字节为两次传输。 */
         if (start_evt) {
             uint16_t chunk = e->len - e->sent;
-            if (chunk > CFG_TUD_BTH_EVENT_EPSIZE - 1) {  /* 恒短包 */
-                chunk = CFG_TUD_BTH_EVENT_EPSIZE - 1;
+            if (chunk == e->len && chunk > 0 &&
+                chunk % CFG_TUD_BTH_EVENT_EPSIZE == 0) {
+                chunk -= 1;
+            }
+            if (chunk == 0) {
+                chunk = 1;
             }
             if (tud_bt_event_send(e->data + e->sent, chunk)) {
                 portENTER_CRITICAL(&s_tx_lock);
@@ -238,10 +244,15 @@ static void pump_task(void *arg)
                 xSemaphoreGive(s_pump_sem);   /* 端点忙，稍后重试 */
             }
         }
+        /* ACL 同理：整包单次传输，仅整倍数长度拆 1 字节 */
         if (start_acl) {
             uint16_t chunk = a->len - a->sent;
-            if (chunk > CFG_TUD_BTH_DATA_EPSIZE - 1) {   /* 恒短包 */
-                chunk = CFG_TUD_BTH_DATA_EPSIZE - 1;
+            if (chunk == a->len && chunk > 0 &&
+                chunk % CFG_TUD_BTH_DATA_EPSIZE == 0) {
+                chunk -= 1;
+            }
+            if (chunk == 0) {
+                chunk = 1;
             }
             if (tud_bt_acl_data_send(a->data + a->sent, chunk)) {
                 portENTER_CRITICAL(&s_tx_lock);

@@ -18,7 +18,7 @@ extern "C" {
 
 /* USB 蓝牙设备类：事件走中断端点，ACL 走批量端点 */
 #define CFG_TUD_BTH                1
-#define CFG_TUD_BTH_EVENT_EPSIZE   16    /* BT USB 规范：事件端点 16 字节 */
+#define CFG_TUD_BTH_EVENT_EPSIZE   64    /* 全速中断端点上限；越大越少触发整倍数特例 */
 #define CFG_TUD_BTH_DATA_EPSIZE    64    /* 全速批量端点 64 字节 */
 /* ISO 交替设置数：alt0(9B) + alt1(49B)，需 ≥2 且给解析循环留余量取 3。
  * 等时端点必须非零包长（Windows 对零值拒绝启动）。 */
