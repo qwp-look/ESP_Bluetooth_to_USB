@@ -24,6 +24,10 @@ extern "C" {
  * 等时端点必须非零包长（Windows 对零值拒绝启动）。 */
 #define CFG_TUD_BTH_ISO_ALT_COUNT  3
 
+/* Windows 蓝牙驱动用设备接收方 + bRequest=0xE0 发 HCI 命令（历史惯例），
+ * 必须开启兼容，否则命令被 STALL、无线电初始化失败（代码10 实测踩坑） */
+#define CFG_TUD_BTH_HISTORICAL_COMPATIBLE 1
+
 /* CDC 控制台（boot/dfu/stats），非数据通道 */
 #define CFG_TUD_CDC                1
 #define CFG_TUD_CDC_RX_BUFSIZE     256
