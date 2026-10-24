@@ -1,0 +1,22 @@
+# esp32-bt-attach@.service — CDC 型固件插上自动 btattach（模板单元）。
+# 与 99-esp32-btdongle.rules 的 SYSTEMD_WANTS 配合：
+#   /dev/ttyACM* (303a:4001) 出现 → 自动实例化 esp32-bt-attach@ttyACMx
+#
+# 安装:
+#   sudo cp 99-esp32-btdongle.rules /etc/udev/rules.d/
+#   sudo cp esp32-bt-attach@.service /etc/systemd/system/
+#   sudo udevadm control --reload && sudo systemctl daemon-reload
+
+[Unit]
+Description=esp32 BT dongle btattach on %I
+After=dev-%i.device
+BindsTo=dev-%i.device
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/btattach -B /dev/%I -P h4 -S 921600 -N
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

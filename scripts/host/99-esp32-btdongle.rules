@@ -1,0 +1,8 @@
+# esp32-btdongle 主机侧规则
+# CDC 数据口（esp_tinyusb 默认 VID:PID 303a:4002，双 CDC 接口）：
+# 放开权限，让 btattach 无需 root（也可为 systemd 自动挂载服务提供设备单元）
+SUBSYSTEM=="tty", ACTION=="add", ATTRS{idVendor}=="303a", ATTRS{idProduct}=="4002", MODE="0666", TAG+="systemd", ENV{SYSTEMD_WANTS}+="esp32-bt-attach@%k.service"
+
+# class 0xE0 固件（303a:4002 BLE 单模 / 303a:4003 双模）：
+# btusb 按接口类自动绑定，无需规则；这里仅保留调试用途的日志
+SUBSYSTEM=="usb", ACTION=="add", ATTR{idVendor}=="303a", ATTR{idProduct}=="400[23]", MODE="0666"

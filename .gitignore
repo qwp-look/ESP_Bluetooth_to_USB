@@ -1,0 +1,10 @@
+# ESP-IDF 构建产物
+firmware/*/build/
+firmware/*/sdkconfig
+firmware/*/sdkconfig.old
+firmware/*/dependencies.lock
+firmware/*/managed_components/
+
+# 常见
+*.log
+__pycache__/

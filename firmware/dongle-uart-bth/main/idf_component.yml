@@ -1,0 +1,7 @@
+## 直接使用 TinyUSB 原生栈（不用 esp_tinyusb 封装），
+## 因为 USB 蓝牙设备类（class 0xE0 / bth）封装层不暴露。
+dependencies:
+  espressif/tinyusb:
+    version: "^0.21.0"
+  idf:
+    version: ">=5.5.0"

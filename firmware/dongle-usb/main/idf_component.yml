@@ -1,0 +1,7 @@
+## 该组件通过 IDF 组件管理器拉取 TinyUSB 封装（esp_tinyusb）。
+## 首次构建时需要联网下载。
+dependencies:
+  espressif/esp_tinyusb:
+    version: "^2.0.0"
+  idf:
+    version: ">=5.5.0"
