@@ -303,6 +303,39 @@ static void feed_uart(uint8_t h4_type, const void *pkt, uint32_t len)
     g_bridge_stats.rx_bytes += 1 + len;
 }
 
+/* 垫片：ESP32 控制器在支持命令位图里宣称支持、实际却报错的三条命令
+ * （Linux 实测告警）。Linux 容忍，Windows 会因此中断扫描初始化——
+ * 由 S3 本地伪造成功响应，不再转发给控制器。 */
+static void inject_evt_cc(uint16_t opcode, const uint8_t *ret_params, uint8_t n)
+{
+    /* Command Complete 事件: [ncmd=1][opcode lo][opcode hi][status=0][ret...] */
+    uint8_t buf[8];
+    buf[0] = 1;
+    buf[1] = (uint8_t)(opcode & 0xFF);
+    buf[2] = (uint8_t)(opcode >> 8);
+    buf[3] = 0x00;
+    if (n) {
+        memcpy(buf + 4, ret_params, n);
+    }
+    uint16_t plen = (uint16_t)(4 + n);       /* 事件参数长度 */
+    uint16_t total = (uint16_t)(2 + plen);   /* + 事件头 */
+
+    portENTER_CRITICAL(&s_tx_lock);
+    if (s_evt_q.count < EVT_POOL_N) {
+        uint8_t idx = (s_evt_q.head + s_evt_q.count) % EVT_POOL_N;
+        s_evt_q.slot[idx].data[0] = 0x0E;    /* Command Complete */
+        s_evt_q.slot[idx].data[1] = (uint8_t)plen;
+        memcpy(&s_evt_q.slot[idx].data[2], buf, plen);
+        s_evt_q.slot[idx].len = total;
+        s_evt_q.count++;
+        portEXIT_CRITICAL(&s_tx_lock);
+        g_bridge_stats.tx_bytes += total;
+        xSemaphoreGive(s_pump_sem);
+        return;
+    }
+    portEXIT_CRITICAL(&s_tx_lock);
+}
+
 void tud_bt_hci_cmd_cb(void *hci_cmd, size_t cmd_len)
 {
     /* EP0 缓冲只在回调内有效，入 ring 后由 uart_tx_task 慢慢发 */
@@ -311,6 +344,23 @@ void tud_bt_hci_cmd_cb(void *hci_cmd, size_t cmd_len)
         g_bridge_stats.rx_dropped += cmd_len;
         return;
     }
+
+    if (cmd_len >= 3) {
+        uint8_t *p = (uint8_t *)hci_cmd;
+        uint16_t opcode = (uint16_t)(p[0] | (p[1] << 8));
+        switch (opcode) {
+        case 0x0C05:   /* Set Event Filter：无返回参数 */
+            inject_evt_cc(opcode, NULL, 0);
+            return;
+        case 0x0C12:   /* Delete Stored Link Key：返回 num_keys_deleted=0 */
+        case 0x0C5A:   /* Read Default Erroneous Data Reporting：返回 enabled=0 */
+            inject_evt_cc(opcode, (const uint8_t[]){0x00}, 1);
+            return;
+        default:
+            break;
+        }
+    }
+
     staging[0] = 0x01;
     memcpy(staging + 1, hci_cmd, cmd_len);
     feed_uart(0x01, staging + 1, cmd_len);

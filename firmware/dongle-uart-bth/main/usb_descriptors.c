@@ -15,11 +15,10 @@
 
 #include "tusb.h"
 
-/* 保留自己的 VID（CSR 克隆 0A12:0001 会触发 Linux btusb 的 CSR 厂商探测，
- * 控制器对未知私有命令回 hardware error → 两端都挂。驱动匹配靠接口类
- * USB\Class_E0 完成，不需要克隆）。 */
-#define USB_VID 0x303A
-#define USB_PID 0x4003
+/* CSR8510 A10 克隆：Windows 对杂牌 VID 的自制蓝牙设备极为挑剔（实测代码10），
+ * 冒充成熟 dongle 让 inbox 驱动走已验证的路径。仅个人自用。 */
+#define USB_VID 0x0A12
+#define USB_PID 0x0001
 #define USB_BCD 0x0200
 
 /* 蓝牙 HCI 接口描述符长度：主接口(3 EP) + isoc 接口 alt0/alt1（各 2 ISO EP） */
