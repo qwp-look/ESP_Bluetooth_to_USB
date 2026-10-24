@@ -15,8 +15,10 @@
 
 #include "tusb.h"
 
-#define USB_VID 0x303A   /* Espressif（自用实验 VID） */
-#define USB_PID 0x4003   /* 双模版：区别于 BLE 单模 (0x4002) 与 CDC (0x4001) */
+/* CSR8510 A10 克隆：Windows 对杂牌 VID 的自制蓝牙设备极为挑剔（实测代码10），
+ * 冒充成熟 dongle 让 inbox 驱动走已验证的路径。仅个人自用。 */
+#define USB_VID 0x0A12
+#define USB_PID 0x0001
 #define USB_BCD 0x0200
 
 /* 蓝牙 HCI 接口描述符长度：主接口(3 EP) + isoc 接口 alt0/alt1（各 2 ISO EP） */
@@ -28,9 +30,10 @@ static const tusb_desc_device_t const_desc_device = {
     .bLength            = sizeof(tusb_desc_device_t),
     .bDescriptorType    = TUSB_DESC_DEVICE,
     .bcdUSB             = USB_BCD,
-    .bDeviceClass       = TUSB_CLASS_MISC,
-    .bDeviceSubClass    = MISC_SUBCLASS_COMMON,
-    .bDeviceProtocol    = MISC_PROTOCOL_IAD,
+    /* 单功能蓝牙设备（真实 dongle 均如此，非复合/IAD） */
+    .bDeviceClass       = TUSB_CLASS_WIRELESS_CONTROLLER,
+    .bDeviceSubClass    = 0x01,
+    .bDeviceProtocol    = 0x01,
     .bMaxPacketSize0    = CFG_TUD_ENDPOINT0_SIZE,
     .idVendor           = USB_VID,
     .idProduct          = USB_PID,
@@ -43,11 +46,12 @@ static const tusb_desc_device_t const_desc_device = {
 
 /* ── 配置描述符（蓝牙接口字节内联） ────────────────────────────────── */
 
-enum { CONFIG_TOTAL_LEN = (TUD_CONFIG_DESC_LEN + BT_ITF_DESC_LEN + TUD_CDC_DESC_LEN) };
+/* 单功能：只有蓝牙接口（无 CDC 控制台——控制台依赖复合布局，Windows 实验版舍弃） */
+enum { CONFIG_TOTAL_LEN = (TUD_CONFIG_DESC_LEN + BT_ITF_DESC_LEN) };
 
 static const uint8_t const_desc_configuration[] = {
-    /* 配置：4 个接口（蓝牙主 + 蓝牙 isoc + CDC 控制 + CDC 数据） */
-    TUD_CONFIG_DESCRIPTOR(1, 4, 0, CONFIG_TOTAL_LEN, 0x00, 100),
+    /* 配置：2 个接口（蓝牙主 + 蓝牙 isoc），远程唤醒（真实 dongle 惯例） */
+    TUD_CONFIG_DESCRIPTOR(1, 2, 0, CONFIG_TOTAL_LEN, 0x20 /* Remote Wakeup */, 100),
 
     /* 蓝牙 HCI 接口：class 0xE0 (Wireless Controller) / sub 01 / proto 01 */
     0x09, TUSB_DESC_INTERFACE, 0x00, 0x00, 0x03,
@@ -76,9 +80,6 @@ static const uint8_t const_desc_configuration[] = {
           0xE0, 0x01, 0x01, 0x00,
     0x07, TUSB_DESC_ENDPOINT, 0x85, TUSB_XFER_ISOCHRONOUS, U16_TO_U8S_LE(49), 0x01,
     0x07, TUSB_DESC_ENDPOINT, 0x05, TUSB_XFER_ISOCHRONOUS, U16_TO_U8S_LE(49), 0x01,
-
-    /* CDC 控制台：itf 2(控制) + 3(数据)，避开 btusb 专用的 itf 1 */
-    TUD_CDC_DESCRIPTOR(2, 0, 0x83, 8, 0x04, 0x84, 64),
 };
 
 /* ── 字符串描述符 ──────────────────────────────────────────────────── */
