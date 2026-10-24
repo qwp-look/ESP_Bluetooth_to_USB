@@ -19,8 +19,8 @@
 #define USB_PID 0x4002   /* 区别于 CDC 固件的 0x4001 */
 #define USB_BCD 0x0200
 
-/* 蓝牙 HCI 接口描述符长度：主接口(alt0, 3 EP) + ISO 备用接口(alt1, 2 EP) */
-#define BT_ITF_DESC_LEN (9 + 7 + 7 + 7 + 9 + 7 + 7)
+/* 蓝牙 HCI 接口描述符长度：主接口(3 EP) + isoc 接口 alt0/alt1（各 2 ISO EP） */
+#define BT_ITF_DESC_LEN (9 + 7 + 7 + 7 + 9 + 7 + 7 + 9 + 7 + 7)
 
 /* ── 设备描述符：复合设备（IAD 约定 0xEF/02/01） ───────────────────── */
 
@@ -62,14 +62,20 @@ static const uint8_t const_desc_configuration[] = {
     0x07, TUSB_DESC_ENDPOINT, 0x82, TUSB_XFER_BULK,
           U16_TO_U8S_LE(CFG_TUD_BTH_DATA_EPSIZE), 0x00,
 
-    /* 蓝牙 isoc 语音接口（独立接口号 1，两个零带宽同步端点）。
+    /* 蓝牙 isoc 语音接口（独立接口号 1，两组交替设置）。
      * - 内核 btusb 无条件认领 ifnum 1 作为 isoc 接口，必须留给它；
-     * - TinyUSB bth 驱动只要求主接口后跟 E0 类 + 2 端点的接口，不看接口号；
-     * - 零带宽 = 主机不会经 USB 传 eSCO 语音（HFP 限制，见架构文档）。 */
+     * - USB 规范要求等时端点 wMaxPacketSize 非零（零值会被 Windows 拒绝启动，
+     *   代码 10 实测踩坑）；
+     * - alt0=9B / alt1=49B 模拟真实 dongle 的带宽阶梯；我们不实际传输 eSCO
+     *   语音（HFP 限制，见架构文档）。 */
     0x09, TUSB_DESC_INTERFACE, 0x01, 0x00, 0x02,
           0xE0, 0x01, 0x01, 0x00,
-    0x07, TUSB_DESC_ENDPOINT, 0x85, TUSB_XFER_ISOCHRONOUS, U16_TO_U8S_LE(0), 0x01,
-    0x07, TUSB_DESC_ENDPOINT, 0x05, TUSB_XFER_ISOCHRONOUS, U16_TO_U8S_LE(0), 0x01,
+    0x07, TUSB_DESC_ENDPOINT, 0x85, TUSB_XFER_ISOCHRONOUS, U16_TO_U8S_LE(9), 0x01,
+    0x07, TUSB_DESC_ENDPOINT, 0x05, TUSB_XFER_ISOCHRONOUS, U16_TO_U8S_LE(9), 0x01,
+    0x09, TUSB_DESC_INTERFACE, 0x01, 0x01, 0x02,
+          0xE0, 0x01, 0x01, 0x00,
+    0x07, TUSB_DESC_ENDPOINT, 0x85, TUSB_XFER_ISOCHRONOUS, U16_TO_U8S_LE(49), 0x01,
+    0x07, TUSB_DESC_ENDPOINT, 0x05, TUSB_XFER_ISOCHRONOUS, U16_TO_U8S_LE(49), 0x01,
 
     /* CDC 控制台：itf 2(控制) + 3(数据)，避开 btusb 专用的 itf 1 */
     TUD_CDC_DESCRIPTOR(2, 0, 0x83, 8, 0x04, 0x84, 64),

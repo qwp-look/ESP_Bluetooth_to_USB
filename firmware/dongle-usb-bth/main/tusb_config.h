@@ -20,9 +20,9 @@ extern "C" {
 #define CFG_TUD_BTH                1
 #define CFG_TUD_BTH_EVENT_EPSIZE   16    /* BT USB 规范：事件端点 16 字节 */
 #define CFG_TUD_BTH_DATA_EPSIZE    64    /* 全速批量端点 64 字节 */
-/* ISO 备用接口数（含驱动强制的 alt1 零带宽占位）。
- * 2 = alt0(主) + alt1(零带宽 ISO)；要支持 eSCO 语音再加更多并调大端点。 */
-#define CFG_TUD_BTH_ISO_ALT_COUNT  2
+/* ISO 交替设置数：alt0(9B) + alt1(49B)，需 ≥2 且给解析循环留余量取 3。
+ * 等时端点必须非零包长（Windows 对零值拒绝启动）。 */
+#define CFG_TUD_BTH_ISO_ALT_COUNT  3
 
 /* CDC 控制台（boot/dfu/stats），非数据通道 */
 #define CFG_TUD_CDC                1
